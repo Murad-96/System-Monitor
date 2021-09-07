@@ -67,6 +67,15 @@ vector<int> LinuxParser::Pids() {
   return pids;
 }
 
+/* convert pid to a string */
+string pidToStr(int pid) {
+  string pidStr;
+  std::stringstream ss;
+  ss << pid;
+  ss >> pidStr;
+  return pidStr;
+}
+
 // TODO: Read and return the system memory utilization
 float LinuxParser::MemoryUtilization() { return 0.0; }
 
@@ -103,13 +112,52 @@ string LinuxParser::Command(int pid[[maybe_unused]]) { return string(); }
 // REMOVE: [[maybe_unused]] once you define the function
 string LinuxParser::Ram(int pid[[maybe_unused]]) { return string(); }
 
-// TODO: Read and return the user ID associated with a process
-// REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Uid(int pid[[maybe_unused]]) { return string(); }
+/* Read and return the user ID associated with a process */
+string LinuxParser::Uid(int pid) { 
+  string value;
+  string key;
+  string line; //buffer
+  string pidStr = pidToStr(pid);
+  // path
+  std::ifstream filestream(kProcDirectory + kStatusFilename + pidStr); 
+  if (filestream.is_open()) {
+    // iterate through lines
+    while (std::getline(filestream, line)) {
+      std::istringstream linestream(line);
+      while (linestream >> key >> value) {
+        if (key == "Uid") {
+          return value;
+        }
+      }
+    }
+  }
+  return value; 
+  }
 
-// TODO: Read and return the user associated with a process
-// REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::User(int pid[[maybe_unused]]) { return string(); }
+/* Read and return the user associated with a process */
+string LinuxParser::User(int pid) { 
+  string key;
+  string value;
+  string line;
+  string pidStr = pidToStr(pid);
+  std::ifstream filestream(kPasswordPath);
+  if (filestream.is_open()) {
+    while (std::getline(filestream, line))
+    {
+      // e.g line is backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+      std::replace(line.begin(), line.end(), 'x', ' ');
+      std::replace(line.begin(), line.end(), ':', ' ');
+      std::istringstream linestream(line);
+      while (linestream >> key >> value) {
+        if (value == pidStr) {
+          return key;
+        }
+      }
+    }
+    
+  }
+  return value;
+ }
 
 // TODO: Read and return the uptime of a process
 // REMOVE: [[maybe_unused]] once you define the function
