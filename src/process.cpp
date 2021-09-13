@@ -39,8 +39,8 @@ string Process::Command() const{
 }
 
 // Return this process's memory utilization
-string Process::Ram() const{
-    //return LinuxParser::Ram(pid_);
+string Process::Ram(){
+    Process::ram_ = LinuxParser::Ram(Process::pid_);
     return Process::ram_;
 }
 

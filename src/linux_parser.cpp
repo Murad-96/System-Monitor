@@ -68,14 +68,6 @@ vector<int> LinuxParser::Pids() {
   return pids;
 }
 
-/* convert pid to a string */
-string pidToStr(int pid) {
-  string pidStr;
-  std::stringstream ss;
-  ss << pid;
-  ss >> pidStr;
-  return pidStr;
-}
 
 /* Read and return the system memory utilization */
 float LinuxParser::MemoryUtilization() {
@@ -97,7 +89,7 @@ float LinuxParser::MemoryUtilization() {
     bufstream << buf;
     bufstream >> key >> mem_buffer;
   }
-  utilization = 1.0 - (mem_free/(mem_total - mem_buffer));
+  utilization = (mem_free/(mem_total - mem_buffer));
   return utilization;
 }
 
@@ -123,7 +115,7 @@ long LinuxParser::ActiveJiffies(int pid) {
   string line;
   string utime, stime, cutime, cstime;
   long sumJiffies = 0;
-  std::ifstream filestream(kStatusFilename + pidStr + "/" + kStatFilename);
+  std::ifstream filestream(kProcDirectory + pidStr + kStatFilename);
   if (filestream.is_open()) {
     std::getline(filestream, line);
     std::istringstream linestream(line);
@@ -221,7 +213,7 @@ string LinuxParser::Command(int pid) {
   string key, value;
   string buf;
   string pidStr = std::to_string(pid);
-  std::ifstream filestream(kStatusFilename + kCmdlineFilename);
+  std::ifstream filestream(kProcDirectory + pidStr + kCmdlineFilename);
   if (filestream.is_open()) {
     std::getline(filestream, buf);
   }
@@ -231,24 +223,22 @@ string LinuxParser::Command(int pid) {
 /* Read and return the memory used by a process */
 string LinuxParser::Ram(int pid) {
   string key, value;
-  int ram;
   string buf;
   string pidStr = std::to_string(pid);
-  std::ifstream filestream(kStatusFilename + pidStr + kStatFilename);
+  std::ifstream filestream(kProcDirectory + pidStr + kStatusFilename);
   if (filestream.is_open()) {
     while (std::getline(filestream, buf))
     {
       std::istringstream linestream(buf);
       while (linestream >> key >> value)
       {
-        if (key == "Vmsize:") {
-          ram = std::stoi(value) / 1000;
-          return std::to_string(ram);
+        if (key == "VmSize:") {
+          return std::to_string(std::stol(value) / 1000);
         }
       }
     }
   }
-  return std::to_string(ram);
+  return std::to_string(0);
 }
 
 /* Read and return the user ID associated with a process */
@@ -258,13 +248,13 @@ string LinuxParser::Uid(int pid) {
   string line; //buffer
   string pidStr = std::to_string(pid);
   // path
-  std::ifstream filestream(kProcDirectory + kStatusFilename + pidStr); 
+  std::ifstream filestream(kProcDirectory + pidStr + kStatusFilename); 
   if (filestream.is_open()) {
     // iterate through lines
     while (std::getline(filestream, line)) {
       std::istringstream linestream(line);
       while (linestream >> key >> value) {
-        if (key == "Uid") {
+        if (key == "Uid:") {
           return value;
         }
       }
@@ -278,6 +268,7 @@ string LinuxParser::User(int pid) {
   string key;
   string value;
   string line;
+  string uid = LinuxParser::Uid(pid); // find the uid for this pid
   string pidStr = std::to_string(pid);
   std::ifstream filestream(kPasswordPath);
   if (filestream.is_open()) {
@@ -288,35 +279,34 @@ string LinuxParser::User(int pid) {
       std::replace(line.begin(), line.end(), ':', ' ');
       std::istringstream linestream(line);
       while (linestream >> key >> value) {
-        if (value == pidStr) {
+        if (value == uid) {
           return key;
         }
       }
     }
     
   }
-  return value;
+  return key;
  }
 
 /* Read and return the uptime of a process */
 long LinuxParser::UpTime(int pid) {
   string pidStr = std::to_string(pid);
   string line;
-  string entry22;
-  long upTime;
+  int clock_tick_index = 22;
+  string ticks;
+  long upTime = 0;
   std::ifstream filestream(kStatusFilename + pidStr + "/" + kStatFilename);
   if (filestream.is_open()) {
     std::getline(filestream, line);
     std::istringstream linestream(line);
     // get 22nd vaue
-    for (int i = 0; i < 22; i++) {
-      linestream >> entry22;
+    for (int i = 0; i < clock_tick_index; i++) {
+      linestream >> ticks;
     }
-    upTime = std::stol(entry22);
-    upTime /= sysconf(_SC_CLK_TCK);
+    upTime = std::stol(ticks) / sysconf(_SC_CLK_TCK);
   }
-  return upTime;
-  //TODO:
-  //Format::Time(upTime);
+  return LinuxParser::UpTime() - upTime;
+
 }
 
