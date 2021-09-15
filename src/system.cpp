@@ -19,8 +19,11 @@ Processor& System::Cpu() { return cpu_; }
 // Return a container composed of the system's processes
 vector<Process>& System::Processes() {
     vector<int> procs = LinuxParser::Pids();
-    for (int i = 0; i < procs.size(); i++) {
-        System::processes_.push_back(procs[i]);
+    for (unsigned int i = 0; i < procs.size(); i++) {
+        Process p(procs[i]);
+        if (p.isValid()) {
+            System::processes_.push_back(p);
+        }
     }
     return processes_;
 }

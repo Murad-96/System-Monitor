@@ -12,7 +12,7 @@ using std::vector;
 
 // Constructor
 Process::Process(int pid) {
-
+    /* initialise values for the member variables */
      Process::pid_ = pid;
      Process::user_ = LinuxParser::User(pid);
      Process::command_ = LinuxParser::Command(pid);
@@ -58,4 +58,13 @@ long int Process::UpTime(){
 // Overload the "less than" comparison operator for Process objects
 bool Process::operator<(Process const& a) const {
     return a.CpuUtilization() < this->CpuUtilization();
+}
+
+// Check if a process is valid
+bool Process::isValid() const{
+    // a valid process has a command name, uptime, and uses some cpu and ram
+    if ((Process::command_.length() >= 1) && (Process::time_ > 0) && (Process::cpu_util_ > 0) && (Process::ram_.length() > 1)) {
+        return true;
+    }
+    return false;
 }

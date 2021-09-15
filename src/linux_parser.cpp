@@ -89,7 +89,8 @@ float LinuxParser::MemoryUtilization() {
     bufstream << buf;
     bufstream >> key >> mem_buffer;
   }
-  utilization = (mem_free/(mem_total - mem_buffer));
+  filestream.close();
+  utilization = 1.0 - (mem_free/(mem_total - mem_buffer));
   return utilization;
 }
 
@@ -103,6 +104,7 @@ long LinuxParser::UpTime() {
     std::istringstream bufstream(buf);
     bufstream >> upTime; // first number is the time required
   }
+  filestream.close();
   return upTime;
 }
 
@@ -125,6 +127,7 @@ long LinuxParser::ActiveJiffies(int pid) {
     }
     linestream >> stime >> cutime >> cstime;
     sumJiffies = std::stol(utime) + std::stol(stime) + std::stol(cutime) + std::stol(cstime);
+    filestream.close();
   }
   return sumJiffies;
 }
@@ -163,6 +166,7 @@ vector<string> LinuxParser::CpuUtilization() {
       bufstream >> token;
       Utils.push_back(token);
     }
+    filestream.close();
   }
   return Utils;
 }
@@ -177,8 +181,9 @@ int LinuxParser::TotalProcesses() {
     while(std::getline(filestream, buf)) {
       std::istringstream bufstream(buf);
       while(bufstream >> token) {
-        if (token == "processes") {
+        if (token == filterProcesses) {
           bufstream >> processes;
+          filestream.close();
           return processes;
         }
       }
@@ -198,8 +203,9 @@ int LinuxParser::RunningProcesses() {
     while(std::getline(filestream, buf)) {
       std::istringstream bufstream(buf);
       while(bufstream >> token) {
-        if (token == "procs_running") {
+        if (token == filterRunningProcesses) {
           bufstream >> numProc;
+          filestream.close();
           return numProc;
         }
       }
@@ -210,12 +216,16 @@ int LinuxParser::RunningProcesses() {
 
 /* Read and return the command associated with a process */
 string LinuxParser::Command(int pid) { 
-  string key, value;
-  string buf;
+  string key, value, buf;
   string pidStr = std::to_string(pid);
   std::ifstream filestream(kProcDirectory + pidStr + kCmdlineFilename);
   if (filestream.is_open()) {
     std::getline(filestream, buf);
+    if (buf.size() > 40) {
+      buf.resize(40); // append ... if the command is too long
+      buf += "...";
+    }
+    filestream.close();
   }
   return buf;
 }
@@ -232,8 +242,10 @@ string LinuxParser::Ram(int pid) {
       std::istringstream linestream(buf);
       while (linestream >> key >> value)
       {
-        if (key == "VmSize:") {
-          return std::to_string(std::stol(value) / 1000);
+        if (key == filterProcMem) { // I've replaced VmSize with this because it gives the exact physical memory used as a part of RAM, as opposed to virtual one
+          filestream.close();
+          value.resize(value.size() - 3); // convert to MB
+          return value;
         }
       }
     }
@@ -254,7 +266,8 @@ string LinuxParser::Uid(int pid) {
     while (std::getline(filestream, line)) {
       std::istringstream linestream(line);
       while (linestream >> key >> value) {
-        if (key == "Uid:") {
+        if (key == filterUID) {
+          filestream.close();
           return value;
         }
       }
@@ -280,6 +293,11 @@ string LinuxParser::User(int pid) {
       std::istringstream linestream(line);
       while (linestream >> key >> value) {
         if (value == uid) {
+          filestream.close();
+          if (key.size() > 6) {
+            key.resize(6); // append ... if the name is too long
+            key += "...";
+          }
           return key;
         }
       }
@@ -305,6 +323,7 @@ long LinuxParser::UpTime(int pid) {
       linestream >> ticks;
     }
     upTime = std::stol(ticks) / sysconf(_SC_CLK_TCK);
+    filestream.close();
   }
   return LinuxParser::UpTime() - upTime;
 
